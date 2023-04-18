@@ -38,7 +38,7 @@ def download_category(category, num_workers, failed_save_file, compress, verbose
   classes = categories[category]
   download_classes(classes, num_workers, failed_save_file, compress, verbose, skip, log_file)
 
-def download_classes(classes, num_workers, failed_save_file, compress, verbose, skip, log_file):
+def download_classes(classes, num_workers, failed_save_file, compress, verbose, skip, log_file, onlyid):
   """
   Download all videos of the provided classes.
   :param classes:               List of classes to download.
@@ -57,12 +57,12 @@ def download_classes(classes, num_workers, failed_save_file, compress, verbose, 
       data = json.load(file)
 
     pool = parallel.Pool(classes, data, save_root, num_workers, failed_save_file, compress, verbose, skip,
-                         log_file=log_file)
+                         log_file=log_file, onlyid=onlyid)
     pool.start_workers()
     pool.feed_videos()
     pool.stop_workers()
 
-def download_test_set(num_workers, failed_log, compress, verbose, skip, log_file):
+def download_test_set(num_workers, failed_log, compress, verbose, skip, log_file, onlyid, cut, finegym):
   """
   Download the test set.
   :param num_workers:           Number of downloads in parallel.
@@ -78,7 +78,7 @@ def download_test_set(num_workers, failed_log, compress, verbose, skip, log_file
     data = json.load(file)
 
   pool = parallel.Pool(None, data, config.TEST_ROOT, num_workers, failed_log, compress, verbose, skip,
-                       log_file=log_file)
+                       log_file=log_file, onlyid=onlyid, cut=cut, finegym=finegym)
   pool.start_workers()
   pool.feed_videos()
   pool.stop_workers()
@@ -106,11 +106,11 @@ def main(args):
     if args.classes:
       # download selected classes
       download_classes(args.classes, args.num_workers, args.failed_log, args.compress, args.verbose, args.skip,
-                       args.log_file)
+                       args.log_file, args.onlyid)
 
     if args.test:
       # download the test set
-      download_test_set(args.num_workers, args.failed_log, args.compress, args.verbose, args.skip, args.failed_log)
+      download_test_set(args.num_workers, args.failed_log, args.compress, args.verbose, args.skip, args.failed_log, args.onlyid, args.cut, args.finegym)
 
 if __name__ == "__main__":
 
@@ -120,6 +120,9 @@ if __name__ == "__main__":
   parser.add_argument("--classes", nargs="+", help="classes to download")
   parser.add_argument("--all", action="store_true", help="download the whole dataset")
   parser.add_argument("--test", action="store_true", help="download the test set")
+  parser.add_argument("--onlyid", default=False)
+  parser.add_argument("--cut", default=False)
+  parser.add_argument("--finegym", default=False)
 
   parser.add_argument("--num-workers", type=int, default=1, help="number of downloader processes")
   parser.add_argument("--failed-log", default="dataset/failed.txt", help="where to save list of failed videos")

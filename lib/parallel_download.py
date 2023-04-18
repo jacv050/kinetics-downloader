@@ -9,7 +9,7 @@ class Pool:
   """
 
   def __init__(self, classes, videos_dict, directory, num_workers, failed_save_file, compress, verbose, skip,
-               log_file=None):
+               log_file=None, onlyid=False, cut=True, finegym=False):
     """
     :param classes:               List of classes to download.
     :param videos_dict:           Dictionary of all videos.
@@ -19,6 +19,9 @@ class Pool:
     :param compress:              Whether to compress the videos using gzip.
     """
 
+    self.finegym = finegym
+    self.cut = cut
+    self.onlyid = onlyid
     self.classes = classes
     self.videos_dict = videos_dict
     self.directory = directory
@@ -48,7 +51,9 @@ class Pool:
     :return:    None.
     """
 
-    if self.classes is None:
+    if self.finegym:
+      downloader.download_class_parallel_finegym(None, self.videos_dict, self.directory, self.videos_queue)
+    elif self.classes is None:
       downloader.download_class_parallel(None, self.videos_dict, self.directory, self.videos_queue)
     else:
       for class_name in self.classes:
@@ -77,7 +82,7 @@ class Pool:
 
     # start download workers
     for _ in range(self.num_workers):
-      worker = Process(target=video_worker, args=(self.videos_queue, self.failed_queue, self.compress, self.log_file))
+      worker = Process(target=video_worker, args=(self.videos_queue, self.failed_queue, self.compress, self.log_file, self.cut, self.finegym))
       worker.start()
       self.workers.append(worker)
 
@@ -100,7 +105,7 @@ class Pool:
       self.failed_queue.put(None)
       self.failed_save_worker.join()
 
-def video_worker(videos_queue, failed_queue, compress, log_file):
+def video_worker(videos_queue, failed_queue, compress, log_file, cut, finegym):
   """
   Downloads videos pass in the videos queue.
   :param videos_queue:      Queue for metadata of videos to be download.
@@ -118,7 +123,12 @@ def video_worker(videos_queue, failed_queue, compress, log_file):
 
     video_id, directory, start, end = request
 
-    if not downloader.process_video(video_id, directory, start, end, compress=compress, log_file=log_file):
+    if finegym:
+      for s,e in zip(start, end):
+        if not downloader.process_video(video_id, directory, s, e, compress=compress, log_file=log_file, cut=cut, finegym=True):
+          failed_queue.put(video_id)
+          break;
+    elif not downloader.process_video(video_id, directory, start, end, compress=compress, log_file=log_file, cut=cut, finegym=False):
       failed_queue.put(video_id)
 
 def write_failed_worker(failed_queue, failed_save_file):
